@@ -17,7 +17,7 @@ function loadConfig(cliOptions = {}) {
 
   return {
     url:            cliOptions.url       || fileConfig.url       || 'http://localhost',
-    port:           cliOptions.port      || fileConfig.port      || 3000,
+    port:           cliOptions.port      || fileConfig.port      || 4000,
     health:         cliOptions.health    || fileConfig.health    || '/health',
     dashboard:      cliOptions.dashboard !== false ? (fileConfig.dashboard !== false) : false,
     app:            fileConfig.app            || {},

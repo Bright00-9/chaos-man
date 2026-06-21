@@ -15,7 +15,7 @@ STOP_CMD=$(node    -e "const c=require('./chaos.config.json'); console.log(c.app
 START_CMD=$(node   -e "const c=require('./chaos.config.json'); console.log(c.app.start_command)")
 READY_WAIT=$(node  -e "const c=require('./chaos.config.json'); console.log(c.app.ready_wait || 3)")
 HEALTH=$(node      -e "const c=require('./chaos.config.json'); console.log(c.health || '/health')")
-PORT=$(node        -e "const c=require('./chaos.config.json'); console.log(c.port || 3000)")
+PORT=$(node        -e "const c=require('./chaos.config.json'); console.log(c.port || 4000)")
 DEPLOY_CMD=$(node  -e "const c=require('./chaos.config.json'); console.log(c.app.deploy_command || '')")
 
 echo "[DEPLOY] Stopping: $STOP_CMD" | tee -a "$LOGFILE"
