@@ -1,0 +1,7 @@
+chaos-results/
+*.log
+.env
+.git
+node_modules
+start.sh
+stop.sh

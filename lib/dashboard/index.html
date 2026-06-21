@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chaos Man Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; padding: 30px; }
+    header { text-align: center; margin-bottom: 40px; }
+    header h1 { font-size: 2rem; color: #58a6ff; letter-spacing: 2px; }
+    header p { color: #8b949e; margin-top: 6px; }
+    .meta { text-align: center; color: #8b949e; font-size: 0.82rem; margin-bottom: 6px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1100px; margin: 0 auto; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 24px; }
+    .card h2 { font-size: 0.85rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    .summary { display: flex; gap: 20px; }
+    .stat { flex: 1; text-align: center; padding: 16px; border-radius: 8px; background: #0d1117; }
+    .stat .number { font-size: 2.5rem; font-weight: bold; }
+    .stat .label { font-size: 0.8rem; color: #8b949e; margin-top: 4px; }
+    .stat.pass .number { color: #3fb950; }
+    .stat.fail .number { color: #f85149; }
+    .stat.total .number { color: #58a6ff; }
+    .test-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 8px; margin-bottom: 10px; background: #0d1117; border-left: 4px solid transparent; }
+    .test-item.pass { border-left-color: #3fb950; }
+    .test-item.fail { border-left-color: #f85149; }
+    .test-name { font-size: 0.95rem; }
+    .test-detail { font-size: 0.8rem; color: #8b949e; margin-top: 3px; }
+    .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+    .badge.pass { background: #1a4a2e; color: #3fb950; }
+    .badge.fail { background: #4a1a1a; color: #f85149; }
+    .timestamp { text-align: center; color: #8b949e; font-size: 0.85rem; margin-bottom: 10px; }
+    .status-banner { text-align: center; padding: 16px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; margin-bottom: 20px; max-width: 1100px; margin-left: auto; margin-right: auto; }
+    .status-banner.healthy { background: #1a4a2e; color: #3fb950; }
+    .status-banner.issues  { background: #4a1a1a; color: #f85149; }
+    .status-banner.waiting { background: #21262d; color: #8b949e; }
+    .approval { grid-column: 1 / -1; text-align: center; }
+    .approval p { color: #8b949e; margin-bottom: 20px; font-size: 0.95rem; }
+    .btn-group { display: flex; gap: 20px; justify-content: center; }
+    .btn { padding: 14px 40px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-approve { background: #238636; color: #fff; }
+    .btn-reject  { background: #da3633; color: #fff; }
+    .decision-msg { margin-top: 20px; padding: 14px; border-radius: 8px; font-weight: bold; display: none; }
+    .decision-msg.approved { background: #1a4a2e; color: #3fb950; }
+    .decision-msg.rejected { background: #4a1a1a; color: #f85149; }
+    canvas { max-height: 200px; }
+    .waiting-msg { text-align: center; color: #8b949e; padding: 40px; font-size: 0.95rem; }
+    .pulse { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #58a6ff; margin-right: 8px; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+  </style>
+</head>
+<body>
+<header>
+  <h1>⚡ CHAOS MAN DASHBOARD</h1>
+  <p>GitOps-driven chaos engineering pipeline — real-time results</p>
+</header>
+
+<div id="waiting" class="waiting-msg">
+  <span class="pulse"></span> Waiting for chaos engine to run... Push a commit to trigger it.
+</div>
+
+<div id="dashboard" style="display:none;">
+  <p class="timestamp" id="timestamp"></p>
+  <p class="meta"      id="stackInfo"></p>
+  <div id="statusBanner" class="status-banner waiting">Waiting for results...</div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Summary</h2>
+      <div class="summary">
+        <div class="stat total"><div class="number" id="totalCount">0</div><div class="label">Total Tests</div></div>
+        <div class="stat pass"> <div class="number" id="passCount">0</div> <div class="label">Passed</div></div>
+        <div class="stat fail"> <div class="number" id="failCount">0</div> <div class="label">Failed</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Results Chart</h2>
+      <canvas id="resultsChart"></canvas>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>Test Results</h2>
+      <div id="testList"></div>
+    </div>
+
+    <div class="card approval">
+      <h2>⚠️ Engineer Approval Gate</h2>
+      <p>Review the results above. Approve to deploy the new code, or reject to keep the current version.</p>
+      <div class="btn-group">
+        <button class="btn btn-approve" id="btnApprove" onclick="decide('approve')">✅ Approve & Deploy</button>
+        <button class="btn btn-reject"  id="btnReject"  onclick="decide('reject')">❌ Reject</button>
+      </div>
+      <div class="decision-msg" id="decisionMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let chart = null, decided = false;
+
+  const source = new EventSource('/stream');
+  source.onmessage = (event) => { renderDashboard(JSON.parse(event.data)); };
+  source.onerror   = () => console.warn('SSE connection lost. Retrying...');
+
+  function renderDashboard(data) {
+    document.getElementById('waiting').style.display   = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('timestamp').textContent   = `Last run: ${data.timestamp}`;
+    document.getElementById('stackInfo').textContent   = `Stack: ${data.stack || 'unknown'} | Database: ${data.database || 'none'}`;
+    document.getElementById('totalCount').textContent  = data.total;
+    document.getElementById('passCount').textContent   = data.passed;
+    document.getElementById('failCount').textContent   = data.failed;
+
+    const banner = document.getElementById('statusBanner');
+    if (data.status === 'HEALTHY') {
+      banner.className = 'status-banner healthy';
+      banner.textContent = '✅ All Systems Healthy — Ready for Deployment';
+    } else {
+      banner.className = 'status-banner issues';
+      banner.textContent = '❌ Issues Found — Review Before Deploying';
+    }
+
+    const list = document.getElementById('testList');
+    list.innerHTML = '';
+    data.tests.forEach(test => {
+      const cls = test.status === 'PASS' ? 'pass' : 'fail';
+      list.innerHTML += `
+        <div class="test-item ${cls}">
+          <div>
+            <div class="test-name">${test.name}</div>
+            <div class="test-detail">${test.detail}</div>
+          </div>
+          <span class="badge ${cls}">${test.status}</span>
+        </div>`;
+    });
+
+    renderChart(data.passed, data.failed);
+  }
+
+  function renderChart(passed, failed) {
+    const ctx = document.getElementById('resultsChart').getContext('2d');
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Passed', 'Failed'],
+        datasets: [{ data: [passed, failed], backgroundColor: ['#3fb950', '#f85149'], borderWidth: 0 }]
+      },
+      options: { plugins: { legend: { labels: { color: '#e6edf3' } } }, cutout: '70%' }
+    });
+  }
+
+  function decide(decision) {
+    if (decided) return;
+    decided = true;
+    document.getElementById('btnApprove').disabled = true;
+    document.getElementById('btnReject').disabled  = true;
+
+    fetch('/approve', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ decision })
+    })
+    .then(r => r.json())
+    .then(data => {
+      const msg = document.getElementById('decisionMsg');
+      msg.style.display = 'block';
+      msg.className     = `decision-msg ${decision === 'approve' ? 'approved' : 'rejected'}`;
+      msg.textContent   = data.message;
+    });
+  }
+</script>
+</body>
+</html>
